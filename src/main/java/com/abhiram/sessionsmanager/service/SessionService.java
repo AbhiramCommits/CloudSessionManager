@@ -4,11 +4,13 @@ import com.abhiram.sessionsmanager.exception.SessionNotFoundException;
 import com.abhiram.sessionsmanager.model.GameSession;
 import com.abhiram.sessionsmanager.model.SessionRepository;
 import com.abhiram.sessionsmanager.model.SessionStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class SessionService {
 
@@ -27,7 +29,10 @@ public class SessionService {
         session.setCreatedAt(Instant.now());
         session.setLastActiveAt(Instant.now());
         session.setStatus(SessionStatus.ACTIVE);
-        return sessionRepository.save(session);
+        GameSession saved = sessionRepository.save(session);
+        log.info("event=session_persisted sessionId={} userId={} region={} ttl={}min",
+                saved.getSessionId(), userId, serverRegion, saved.getTtl());
+        return saved;
     }
 
     public GameSession getSession(String sessionId) {
@@ -39,7 +44,10 @@ public class SessionService {
         GameSession session = getSession(sessionId);
         session.setLastActiveAt(Instant.now());
         session.setStatus(SessionStatus.ACTIVE);
-        return sessionRepository.save(session);
+        GameSession updated = sessionRepository.save(session);
+        log.info("event=session_activity_refreshed sessionId={} lastActiveAt={}",
+                sessionId, updated.getLastActiveAt());
+        return updated;
     }
 
     public void terminateSession(String sessionId) {
@@ -47,5 +55,7 @@ public class SessionService {
         session.setStatus(SessionStatus.TERMINATED);
         sessionRepository.save(session);
         sessionRepository.delete(session);
+        log.info("event=session_deleted sessionId={} userId={} status=TERMINATED",
+                sessionId, session.getUserId());
     }
 }
